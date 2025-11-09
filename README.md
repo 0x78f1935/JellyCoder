@@ -1,6 +1,7 @@
 # Video Encoder Utility
 
 ![PyPI - Version](https://img.shields.io/pypi/v/jellycoder)
+[![Python package](https://github.com/0x78f1935/JellyCoder/actions/workflows/python-package.yml/badge.svg?branch=master)](https://github.com/0x78f1935/JellyCoder/actions/workflows/python-package.yml)
 
 ## Overview
 
