@@ -1,5 +1,7 @@
 # Video Encoder Utility
 
+![PyPI - Version](https://img.shields.io/pypi/v/jellycoder)
+
 ## Overview
 
 `video_reducer` scans a folder for supported videos (`.mkv`, `.mp4`, `.wmv`, `.mwv`) and re-encodes them with size-aware defaults. It keeps subtitles/metadata, flips containers when MP4 constraints are violated, and preserves a mirrored directory tree when you choose not to overwrite in place.

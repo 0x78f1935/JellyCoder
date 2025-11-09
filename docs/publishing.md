@@ -1,6 +1,6 @@
 # Publishing jellycoder to PyPI
 
-This guide assumes you are working from the project root on Windows PowerShell and that you have maintainer access to the `jellycoder` package namespace.
+This guide assumes you are working from the project root on Windows PowerShell and that you have maintainer access to the [`jellycoder`](https://pypi.org/project/jellycoder/) package namespace.
 
 ## 1. Prerequisites
 
