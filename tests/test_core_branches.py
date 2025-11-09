@@ -829,10 +829,10 @@ def test_encode_video_missing_output_raises(tmp_path: Path, monkeypatch: pytest.
 
     original_stat = Path.stat
 
-    def missing_stat(self: Path) -> os.stat_result:  # type: ignore[override]
+    def missing_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:  # type: ignore[override]
         if self.name.startswith("_") or self.name.endswith(".mp4"):
             raise FileNotFoundError
-        return original_stat(self)
+        return original_stat(self, follow_symlinks=follow_symlinks)
 
     monkeypatch.setattr(Path, "stat", missing_stat)
 
