@@ -820,17 +820,21 @@ def test_encode_video_missing_output_raises(tmp_path: Path, monkeypatch: pytest.
     )
     monkeypatch.setattr(core, "probe_media_info", lambda path: info)
 
+    encoding_started = False
+
     def fake_run(cmd: list[str], *_: object) -> None:
         target = Path(cmd[-1])
         if target.exists():
             target.unlink()
+        nonlocal encoding_started
+        encoding_started = True
 
     monkeypatch.setattr(core, "run_ffmpeg_with_progress", fake_run)
 
     original_stat = Path.stat
 
     def missing_stat(self: Path, *, follow_symlinks: bool = True) -> os.stat_result:  # type: ignore[override]
-        if self.name.startswith("_") or self.name.endswith(".mp4"):
+        if encoding_started and (self.name.startswith("_") or self.name.endswith(".mp4")):
             raise FileNotFoundError
         return original_stat(self, follow_symlinks=follow_symlinks)
 
