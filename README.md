@@ -2,54 +2,85 @@
 
 ## Overview
 
-- `--codec CODEC`: Choose `h264` (default, widest compatibility) or `hevc` for higher compression.
-- `--quality` (`auto`/`1080p`/`720p`/`480p`/`360p`): Downscale video to the selected height while maintaining aspect ratio (default `auto`).
+`video_reducer` scans a folder for supported videos (`.mkv`, `.mp4`, `.wmv`, `.mwv`) and re-encodes them with size-aware defaults. It keeps subtitles/metadata, flips containers when MP4 constraints are violated, and preserves a mirrored directory tree when you choose not to overwrite in place.
+
+Key capabilities:
+
+- Automatic encoder selection with hardware-first preference (NVENC → QSV → AMF → x264) and explicit backend override flags.
+- Height presets (`auto`, `1080p`, `720p`, `480p`, `360p`) with bitrate scaling so smaller outputs also shrink file size.
+- Smart audio handling: copies compatible streams, forces stereo when sources are mono or pseudo-mono (e.g., WMV files with only one active channel), and warns about downmixing.
+- Hardware fallbacks: if a chosen hardware encoder fails to create a session, the tool transparently repeats the job with `libx264` so the batch continues.
 
 ## Prerequisites
 
+- Windows PowerShell 5.1 (default shell for the repo scripts).
+- Python 3.11+ with virtual environment support.
+- ffmpeg and ffprobe in `PATH`.
+  - Hardware backends require vendor drivers and an ffmpeg build with NVENC/QSV/AMF enabled.
+
 ## Installation
 
+```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-# Install project in editable mode (no external deps today)
-
+pip install --upgrade pip
 pip install -e .
-
-````
+```
 
 ## Usage
 
 ```powershell
 # Show CLI help
+python -m video_reducer --help
 
-# Legacy wrapper remains available and forwards to the same CLI
-python encode_videos.py
-````
+# Reduce a folder, mirror outputs under ./output/<dir>, auto-select backend
+python -m video_reducer --input D:\media --quality 720p
+
+# Force Intel QSV, enable overwrite, run at debug verbosity
+python -m video_reducer --input D:\media --encoder-backend qsv --overwrite --log-level debug
+
+# Legacy wrapper remains available
+python encode_videos.py --input D:\media
+```
 
 ### Key Flags
 
-- `--input PATH`: Directory that will be scanned for `.mkv`/`.mp4` files.
-- `--overwrite`: Replace source files in place. Omit to mirror output under `./output/<input-name>`.
-- `--workers N`: Number of concurrent encodes (default 1; NVENC prefers single jobs).
-- `--log-level LEVEL`: Adjust logging verbosity (`info`, `debug`, etc.).
-- `--codec CODEC`: Choose `h264` (default, widest compatibility) or `hevc` for higher compression.
-- `--quality PRESET`: Automatically downscale video height to `1080p`, `720p`, `480p`, `360p`, or leave unchanged with `auto` (default).
+- `--input PATH`: Directory scanned recursively for supported video extensions.
+- `--encoder-backend BACKEND`: `auto` (default), `nvenc`, `x264`, `qsv`, or `amf`.
+- `--preferred-codec CODEC`: Hint `h264` or `hevc`; respected when the backend supports it.
+- `--quality PRESET`: Downscale preset (`auto`, `1080p`, `720p`, `480p`, `360p`).
+- `--workers N`: Concurrent encodes (default 1; hardware encoders generally behave best at 1).
+- `--overwrite`: Replace sources in place. When omitted, outputs land in `./output/<input-folder>`.
+- `--log-level LEVEL`: `info` (default), `debug`, `warning`, etc.
 
 ### Output Behavior
 
-- When overwrite is disabled, the command writes to `output/<input-folder>` relative to the process working directory.
-- Subtitles and metadata are copied forward automatically.
-- If the encoded file is larger than the source, a warning is logged so you can review it later.
-- Files targeting MP4 automatically convert SubRip/ASS subtitles to `mov_text`; if subtitles, extra video streams, or attachments make MP4 unsuitable, the encoder falls back to MKV for that title.
+- MP4 targets convert SubRip/ASS to `mov_text` automatically; incompatible streams trigger a fallback to MKV.
+- Attached artwork, metadata, and subtitle tracks are propagated.
+- When the output is larger than the input, a warning is emitted so you can review or delete the file.
+- Audio streams are copied when safe; otherwise they are re-encoded to AAC 192k stereo, duplicating the dominant channel if the source is effectively mono.
+
+## Encoder Backends
+
+- **Auto**: Queries ffmpeg encoders and picks the best available hardware backend (NVENC → QSV → AMF → x264).
+- **NVENC/QSV/AMF**: Uses vendor hardware. Hardware decode fallbacks are attempted before giving up.
+- **x264**: Software-only; always available.
+- If a hardware backend exhausts its attempts (e.g., `Error creating a MFX session: -9` on QSV), the utility logs a warning and re-runs the encode with `libx264` automatically.
+
+## Audio Handling
+
+- ffprobe insights drive copy-or-transcode decisions.
+- WMV inputs and other stereo tracks with severe channel imbalance trigger a sampling step; if only one channel has meaningful signal, the tool duplicates it so the result plays on both speakers.
+- Mono and surround sources are converted to stereo with informative log messages about the change.
 
 ## Development
 
-- Run `python -m video_reducer --help` after edits to ensure argument parsing still works.
-- Use `python -m video_reducer --input <path> --overwrite --codec h264` for smoke tests against short clips.
-- The VS Code launch configurations in `.vscode/launch.json` provide ready-to-run debug sessions.
+- Run `python -m pytest` before committing; coverage is enforced at 100%.
+- `python -m video_reducer --help` verifies CLI wiring after refactors.
+- VS Code launchers in `.vscode/launch.json` provide ready-to-run debug sessions.
 
 ## Troubleshooting
 
-- If ffmpeg cannot find NVENC, verify the build exposes `h264_nvenc`/`hevc_nvenc` via `ffmpeg -encoders | Select-String nvenc`.
-- Windows PowerShell may buffer progress output; use the integrated terminal for the cleanest experience.
-- Delete partial outputs in `output/` if you need to re-run without the `--overwrite` flag.
+- Validate ffmpeg exposes the expected encoders: `ffmpeg -hide_banner -encoders | Select-String nvenc`.
+- Hardware backends may need up-to-date GPU/Media drivers; keep Windows and vendor packages current.
+- Delete partial outputs in `output/` if you want to re-run without `--overwrite`.
