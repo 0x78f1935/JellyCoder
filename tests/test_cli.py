@@ -63,6 +63,7 @@ def test_parse_args_defaults() -> None:
     assert args.input is None
     assert args.max_workers == 1
     assert args.codec == "auto"
+    assert args.aspect is None
 
 
 def test_parse_args_full(tmp_path: Path) -> None:
@@ -81,6 +82,8 @@ def test_parse_args_full(tmp_path: Path) -> None:
         "720p",
         "--backend",
         "qsv",
+        "--aspect",
+        "16:9",
     ])
     assert args.input == str(tmp_path)
     assert args.overwrite is True
@@ -90,6 +93,7 @@ def test_parse_args_full(tmp_path: Path) -> None:
     assert args.codec == "h264"
     assert args.quality == "720p"
     assert args.backend == "qsv"
+    assert args.aspect == "16:9"
 
 
 def test_main_with_args(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -102,6 +106,7 @@ def test_main_with_args(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
         codec="h264",
         quality="1080p",
         backend="nvenc",
+        aspect="16:9",
     )
     captured = {}
 
@@ -117,6 +122,7 @@ def test_main_with_args(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
     assert cfg.preferred_codec == "h264"
     assert cfg.quality == "1080p"
     assert cfg.encoder_backend == "nvenc"
+    assert cfg.aspect == "16:9"
     assert (tmp_path / "jelly_coder.log").exists()
 
 
@@ -130,6 +136,7 @@ def test_main_interactive(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> No
         codec="auto",
         quality=None,
         backend="auto",
+        aspect=None,
     )
     captured = {}
 
@@ -162,6 +169,7 @@ def test_main_writes_log_to_output_directory(monkeypatch: pytest.MonkeyPatch, tm
         codec="auto",
         quality="auto",
         backend="auto",
+        aspect=None,
     )
     captured = {}
 
@@ -187,6 +195,7 @@ def test_main_writes_log_to_default_output(monkeypatch: pytest.MonkeyPatch, tmp_
         codec="auto",
         quality=None,
         backend="auto",
+        aspect=None,
     )
     captured = {}
 
@@ -209,3 +218,13 @@ def test_package_main_entry(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "main", lambda argv=None: called.update({"ran": True}))
     runpy.run_module("jelly_coder.__main__", run_name="__main__")
     assert called == {"ran": True}
+
+
+def test_parse_args_aspect_valid() -> None:
+    args = cli.parse_args(["somedir", "--aspect", "16:9"])
+    assert args.aspect == "16:9"
+
+
+def test_parse_args_aspect_invalid() -> None:
+    with pytest.raises(SystemExit):
+        cli.parse_args(["somedir", "--aspect", "widescreen"])

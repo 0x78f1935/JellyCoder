@@ -180,6 +180,7 @@ class ReducerConfig:
     preferred_codec: Optional[str] = None
     quality: str = "auto"
     encoder_backend: str = "auto"
+    aspect: Optional[str] = None
 
 
 def ensure_ffmpeg_available() -> None:
@@ -665,6 +666,7 @@ def encode_video(
     encoder: str,
     output_extension: str,
     quality: str,
+    aspect: Optional[str] = None,
     *,
     _allow_encoder_fallback: bool = True,
     _media_info_override: Optional[MediaInfo] = None,
@@ -812,6 +814,10 @@ def encode_video(
             log_message += f" Downmixing from {audio_channels} channels to stereo."
         logging.info(log_message)
 
+    aspect_filter: Optional[str] = None
+    if aspect:
+        aspect_filter = f"setdar={aspect.replace(':', '/')}"
+
     normalized_quality = quality.lower()
     scale_filter: Optional[str] = None
     if normalized_quality != "auto":
@@ -921,8 +927,13 @@ def encode_video(
             if NVENC_TEMPORAL_AQ:
                 cmd.extend(["-temporal_aq", NVENC_TEMPORAL_AQ])
 
+        vf_parts: List[str] = []
         if scale_filter:
-            cmd.extend(["-vf", scale_filter])
+            vf_parts.append(scale_filter)
+        if aspect_filter:
+            vf_parts.append(aspect_filter)
+        if vf_parts:
+            cmd.extend(["-vf", ",".join(vf_parts)])
 
         cmd.extend([
             "-pix_fmt",
@@ -1021,6 +1032,7 @@ def encode_video(
                 encoder=fallback_encoder,
                 output_extension=output_extension,
                 quality=quality,
+                aspect=aspect,
                 _allow_encoder_fallback=False,
                 _media_info_override=media_info,
             )
@@ -1070,6 +1082,7 @@ def process_videos(
     output_extension: str,
     max_workers: int,
     quality: str,
+    aspect: Optional[str] = None,
 ) -> None:
     tasks = {}
     encode = partial(
@@ -1078,6 +1091,7 @@ def process_videos(
         encoder=encoder,
         output_extension=output_extension,
         quality=quality,
+        aspect=aspect,
     )
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -1139,4 +1153,5 @@ def reduce_videos(config: ReducerConfig) -> None:
         output_extension=selection.output_extension,
         max_workers=config.max_workers,
         quality=quality_choice,
+        aspect=config.aspect,
     )

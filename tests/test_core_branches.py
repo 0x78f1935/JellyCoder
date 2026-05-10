@@ -433,6 +433,96 @@ def test_encode_video_scaling_adjusts_bitrate(
     assert any("Adjusting target bitrate" in msg for msg in caplog.messages)
 
 
+def test_encode_video_aspect_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    src = tmp_path / "aspect.mkv"
+    src.write_bytes(b"x" * 500)
+    dst = tmp_path / "aspect.mp4"
+    info = core.MediaInfo(
+        frames=50,
+        duration=3.0,
+        bitrate_kbps=1800.0,
+        width=1920,
+        height=1080,
+        audio_codec="aac",
+        audio_bitrate_kbps=96.0,
+        audio_channels=2,
+        subtitle_codecs=[],
+        video_codecs=["h264"],
+        attached_pic_codecs=[],
+        data_stream_codecs=[],
+    )
+    monkeypatch.setattr(core, "probe_media_info", lambda path: info)
+
+    commands: list[list[str]] = []
+
+    def fake_run(cmd: list[str], *_: object) -> None:
+        commands.append(cmd)
+        Path(cmd[-1]).write_bytes(b"y" * 200)
+
+    monkeypatch.setattr(core, "run_ffmpeg_with_progress", fake_run)
+
+    core.encode_video(
+        src=src,
+        dst=dst,
+        overwrite=False,
+        encoder="h264_nvenc",
+        output_extension=".mp4",
+        quality="auto",
+        aspect="16:9",
+    )
+    encoded = commands[0]
+    vf_index = encoded.index("-vf")
+    assert encoded[vf_index + 1] == "setdar=16/9"
+
+
+def test_encode_video_aspect_with_scale(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    src = tmp_path / "both.mkv"
+    src.write_bytes(b"x" * 500)
+    dst = tmp_path / "both.mp4"
+    info = core.MediaInfo(
+        frames=50,
+        duration=3.0,
+        bitrate_kbps=1800.0,
+        width=1920,
+        height=1080,
+        audio_codec="aac",
+        audio_bitrate_kbps=96.0,
+        audio_channels=2,
+        subtitle_codecs=[],
+        video_codecs=["h264"],
+        attached_pic_codecs=[],
+        data_stream_codecs=[],
+    )
+    monkeypatch.setattr(core, "probe_media_info", lambda path: info)
+
+    commands: list[list[str]] = []
+
+    def fake_run(cmd: list[str], *_: object) -> None:
+        commands.append(cmd)
+        Path(cmd[-1]).write_bytes(b"y" * 200)
+
+    monkeypatch.setattr(core, "run_ffmpeg_with_progress", fake_run)
+
+    core.encode_video(
+        src=src,
+        dst=dst,
+        overwrite=False,
+        encoder="h264_nvenc",
+        output_extension=".mp4",
+        quality="720p",
+        aspect="4:3",
+    )
+    encoded = commands[0]
+    vf_index = encoded.index("-vf")
+    assert encoded[vf_index + 1] == "scale=-2:720,setdar=4/3"
+
+
 def test_encode_video_skips_when_destination_exists(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
