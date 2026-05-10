@@ -747,6 +747,7 @@ def test_process_videos_handles_success_and_failure(
             output_extension=".mp4",
             max_workers=2,
             quality="auto",
+            aspect=None,
         )
     assert len(calls) == 2
     assert any("Failed" in message for message in caplog.messages)

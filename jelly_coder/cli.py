@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -13,6 +14,16 @@ BACKEND_CHOICES = ["auto", "nvenc", "x264", "qsv", "amf"]
 
 DEFAULT_LOG_LEVEL = logging.INFO
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
+
+_ASPECT_PATTERN = re.compile(r"^\d+:\d+$")
+
+
+def _validate_aspect(value: str) -> str:
+    if not _ASPECT_PATTERN.match(value):
+        raise argparse.ArgumentTypeError(
+            f"Invalid aspect ratio '{value}'. Expected W:H format (e.g. 16:9, 4:3)."
+        )
+    return value
 
 
 def _prompt_for_directory() -> Path:
@@ -107,6 +118,12 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         choices=QUALITY_PRESETS,
         help="Target video quality preset (default: auto).",
     )
+    parser.add_argument(
+        "--aspect",
+        default=None,
+        type=_validate_aspect,
+        help="Output display aspect ratio in W:H format (e.g. 16:9, 4:3).",
+    )
     return parser.parse_args(argv)
 
 
@@ -165,6 +182,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         preferred_codec=None if args.codec == "auto" else args.codec,
         quality=quality,
         encoder_backend=backend,
+        aspect=args.aspect,
     )
 
     reduce_videos(config)

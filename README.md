@@ -37,23 +37,28 @@ pip install -e .
 python -m jelly_coder --help
 
 # Reduce a folder, mirror outputs under ./output/<dir>, auto-select backend
-python -m jelly_coder --input D:\media --quality 720p
+python -m jelly_coder D:\media --quality 720p
 
 # Force Intel QSV, enable overwrite, run at debug verbosity
-python -m jelly_coder --input D:\media --encoder-backend qsv --overwrite --log-level debug
+python -m jelly_coder D:\media --backend qsv --overwrite --log-level debug
+
+# Change the display aspect ratio to 16:9
+python -m jelly_coder D:\media --aspect 16:9
 
 # Legacy wrapper remains available
-python encode_videos.py --input D:\media
+python encode_videos.py D:\media
 ```
 
 ### Key Flags
 
-- `--input PATH`: Directory scanned recursively for supported video extensions.
-- `--encoder-backend BACKEND`: `auto` (default), `nvenc`, `x264`, `qsv`, or `amf`.
-- `--preferred-codec CODEC`: Hint `h264` or `hevc`; respected when the backend supports it.
+- `PATH` (positional): Directory scanned recursively for supported video extensions.
+- `--backend BACKEND`: `auto` (default), `nvenc`, `x264`, `qsv`, or `amf`.
+- `--codec CODEC`: Hint `h264` or `hevc`; respected when the backend supports it.
 - `--quality PRESET`: Downscale preset (`auto`, `1080p`, `720p`, `480p`, `360p`).
-- `--workers N`: Concurrent encodes (default 1; hardware encoders generally behave best at 1).
+- `--aspect W:H`: Set the output display aspect ratio (e.g. `16:9`, `4:3`).
+- `--max-workers N`: Concurrent encodes (default 1; hardware encoders generally behave best at 1).
 - `--overwrite`: Replace sources in place. When omitted, outputs land in `./output/<input-folder>`.
+- `--output PATH`: Custom output directory root when not overwriting.
 - `--log-level LEVEL`: `info` (default), `debug`, `warning`, etc.
 
 ### Output Behavior
